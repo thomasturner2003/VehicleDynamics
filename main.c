@@ -17,7 +17,7 @@ typedef struct{
 
 typedef struct{
     float mass;          
-    float xcg;                   
+    float xcg;          // measured from the front axle         
     float hcg;   
     float yaw_inertia;
 }Inertial;
@@ -196,24 +196,31 @@ float cornering_speed(State *state, const Param *param){
     }
 }
 
-void load_transfer(State *state, const Param *param, float a_long, float a_lat, bool counter_clockwise){
-    // longitudinal
-    float delta_F_long_fr = param->inertial.mass * a_long * param->inertial.hcg/2;
-    float delta_F_long_fl = delta_F_long_fr;
-    float delta_F_long_rr = - delta_F_long_fr;
-    float delta_F_long_rl = - delta_F_long_fr;
 
-    // lattitudal
+void wheel_loads(State *state, const Param *param, float a_long, float a_lat){
+    // a_long: longitudinal acceleration, acceleration +ve, decceleration -ve
+    // a_lat: lattitudal acceleration, turning right +ve, turning left -ve
+
+    float F_static_f = (param->geometry.wheelbase - param->inertial.xcg) * param->environment.g * param->inertial.mass/param->geometry.wheelbase;
+    float F_static_r = (param->inertial.xcg * param->environment.g * param->inertial.mass)/param->geometry.wheelbase;
+
+    float F_long_f = - param->inertial.mass * a_long * param->inertial.hcg / param->geometry.wheelbase;
+    float F_long_r = - F_long_f;
+
     float k_total = (param->roll.roll_stiffness_f + param->roll.roll_stiffness_r);
-    float delta_F_sprung_f = param->roll.roll_stiffness_f * param->inertial.mass * a_lat * param->inertial.hcg / (k_total * param->geometry.track_f);
-    float delta_F_sprung_r = param->roll.roll_stiffness_r * param->inertial.mass * a_lat * param->inertial.hcg / (k_total * param->geometry.track_r);
-    float delta_F_geom_f = param->inertial.mass * a_lat * param->roll.roll_height_f;
-    float delta_F_geom_r = param->inertial.mass * a_lat * param->roll.roll_height_r;
-    float delta_F_f = delta_F_geom_f + delta_F_sprung_f;
-    float delta_F_r = delta_F_geom_r + delta_F_sprung_r;
+    float F_sprung_f = param->roll.roll_stiffness_f * param->inertial.mass * a_lat * param->inertial.hcg / (k_total * param->geometry.track_f);
+    float F_sprung_r = param->roll.roll_stiffness_r * param->inertial.mass * a_lat * param->inertial.hcg / (k_total * param->geometry.track_r);
+    float F_geom_f = param->inertial.mass * a_lat * param->roll.roll_height_f / param->geometry.track_f;
+    float F_geom_r = param->inertial.mass * a_lat * param->roll.roll_height_r / param->geometry.track_r;
+    float F_lat_f = F_geom_f + F_sprung_f;
+    float F_lat_r = F_geom_r + F_sprung_r;
 
-    // adjust the state loads based on h
+    state->loads.F_fl = (F_static_f + F_long_f - F_lat_f)/2;
+    state->loads.F_fr = (F_static_f + F_long_f + F_lat_f)/2;
+    state->loads.F_rl = (F_static_r + F_long_r - F_lat_r)/2;
+    state->loads.F_rr = (F_static_r + F_long_r + F_lat_r)/2;
 }
+
 
 int main() {
     State state;

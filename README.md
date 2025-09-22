@@ -1,7 +1,3 @@
 # VehicleDynamics
-Goal: Inform mechanical systems design within a fast open sourced program
-
-Application: Formula Student setup and mechanical design
-
-Workflow: Fill in core dynamic properties and return benchmark test results
+Working towards a bicycle model with lateral and longitudinal load transfer. Primary goal is to evaluate performance in the FSUK skidpad event and seperate benchmark tests. Secondary goal is to evaluate performance in the sprint event.
 

@@ -180,13 +180,38 @@ void position_update(State *state, const Param *param){
 }
 
 
-float cornering_speed(State *state, const Param *param){
+float cornering_speed(const State *state, const Param *param){
     // This ignores the impact of differential by setting force of both driven loads as equal.
     // Need to fix the tyre stiffness
-    float F_lat_max_fr = param->tyres.mu_lat * state->loads.F_fr * sqrtf(1 - powf(state->loads.F_long_fr/(param->tyres.mu_long * state->loads.F_fr), 2));
-    float F_lat_max_fl = param->tyres.mu_lat * state->loads.F_fl * sqrtf(1 - powf(state->loads.F_long_fl/(param->tyres.mu_long * state->loads.F_fl), 2));
-    float F_lat_max_rr = param->tyres.mu_lat * state->loads.F_rr * sqrtf(1 - powf(state->loads.F_long_rr/(param->tyres.mu_long * state->loads.F_rr), 2));
-    float F_lat_max_rl = param->tyres.mu_lat * state->loads.F_rl * sqrtf(1 - powf(state->loads.F_long_rl/(param->tyres.mu_long * state->loads.F_rl), 2));
+    float F_lat_max_fr, F_lat_max_fl, F_lat_max_rr, F_lat_max_rl;
+    if (1 - powf(state->loads.F_long_fr/(param->tyres.mu_long * state->loads.F_fr), 2) < 0){
+        printf("Front right exceeds limit\n");
+        F_lat_max_fr = 0;
+    }
+    else{
+        F_lat_max_fr = param->tyres.mu_lat * state->loads.F_fr * sqrtf(1 - powf(state->loads.F_long_fr/(param->tyres.mu_long * state->loads.F_fr), 2));
+    }
+    if (1 - powf(state->loads.F_long_fl/(param->tyres.mu_long * state->loads.F_fl), 2) < 0) {
+        printf("Front left exceeds limit\n");
+        F_lat_max_fl = 0;
+    }
+    else{
+        F_lat_max_fl = param->tyres.mu_lat * state->loads.F_fl * sqrtf(1 - powf(state->loads.F_long_fl/(param->tyres.mu_long * state->loads.F_fl), 2));
+    }
+    if (1 - powf(state->loads.F_long_rr/(param->tyres.mu_long * state->loads.F_rr), 2) < 0){
+        printf("Rear right exceeds limit\n");
+        F_lat_max_rr = 0;
+    }
+    else{
+        F_lat_max_rr = param->tyres.mu_lat * state->loads.F_rr * sqrtf(1 - powf(state->loads.F_long_rr/(param->tyres.mu_long * state->loads.F_rr), 2));
+    }
+    if (1 - powf(state->loads.F_long_rl/(param->tyres.mu_long * state->loads.F_rl), 2) < 0){
+        printf("Rear left exceeds limit\n");
+        F_lat_max_rl = 0;
+    }
+    else{
+         F_lat_max_rl = param->tyres.mu_lat * state->loads.F_rl * sqrtf(1 - powf(state->loads.F_long_rl/(param->tyres.mu_long * state->loads.F_rl), 2));
+    }
     float F_lat_capacity = F_lat_max_fr + F_lat_max_fl + F_lat_max_rr + F_lat_max_rl;
     if (state->position.curvature != 0){
         return sqrtf(F_lat_capacity/(param->inertial.mass * state->position.curvature));
@@ -222,6 +247,13 @@ void wheel_loads(State *state, const Param *param, float a_long, float a_lat){
 }
 
 
+void drive(State *state, const Param *param){
+    // selects the lateral and longitudinal forces that maximise cornering speeds
+    
+    // idea is to increase longitudinal force from 0 -> calculate forces -> calculate accelerations-> wheel loads -> check if you exceed the max cornering speed
+}
+
+
 int main() {
     State state;
     Param param;
@@ -229,9 +261,12 @@ int main() {
     set_state(&state, &param);
     state.position.yaw = 3.14/2;
     state.dynamics.v_long = 1;
-    for(int i=0;i<10;i++){
+    state.loads.F_long_rl = 300;
+    state.loads.F_long_fl = 300;
+    for(int i=0;i<100;i++){
         position_update(&state, &param);
         printf("t=%lf x=%lf y=%lf\n",state.position.time, state.position.x, state.position.y);
+        cornering_speed(&state, &param);
     }
     float speed = cornering_speed(&state, &param);
     printf("%lf", speed);
